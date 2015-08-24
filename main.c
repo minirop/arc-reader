@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			FILE * f = fopen(arc_get_file_name(arc, i), "wb");
+			FILE * f = fopen(file_name_with_path, "wb");
 			printf("uncompressed..."); fflush(stdout);
 			fwrite(raw_data, filesize, 1, f);
 			fclose(f);
