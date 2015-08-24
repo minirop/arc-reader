@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "arc.h"
 #include "dsc.h"
 #include "cbg.h"
+#include "bse.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -51,6 +53,8 @@ int main(int argc, char** argv)
 			sprintf(file_name_with_path, "%s/%s", argv[2], arc_get_file_name(arc, i));
 		else
 			sprintf(file_name_with_path, "%s", arc_get_file_name(arc, i));
+
+    bse_decrypt((char *)raw_data, &filesize);
 		
 		printf("%s...", arc_get_file_name(arc, i)); fflush(stdout);
 		if(dsc_is_valid(raw_data, filesize))
