@@ -7,6 +7,7 @@ Files
 =====
 
 * arc.h/c : read an .arc file and get info on the contained files.
+* bse.h/c : remove BSE encryption (only the first 64 bytes are encrypted).
 * cgb.h/c : decrypt and save a "CompressedBG___" file onto the disk.
 * dsc.h/c : decrypt and save a "DSC FORMAT 1.00" file onto the disk.
 * decrypt.h/c : helper functions.
