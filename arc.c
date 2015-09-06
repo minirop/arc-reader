@@ -1,6 +1,7 @@
 #include "arc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct File
 {
@@ -19,25 +20,30 @@ struct Arc
 
 /* helper functions */
 static uint32_t read32(FILE * file);
+static struct File read_next_file_metadata_v1(FILE * file);
+static struct File read_next_file_metadata_v2(FILE * file);
 
 struct Arc * arc_open(const char * filename)
 {
-	uint32_t magic[2], spaaaaaaaaaaaaaaace, numberOfFiles;
-	int i;
+	char magic_string[13] = {0};
+	uint32_t numberOfFiles;
+	int i, version = 0;
 	struct File * files = NULL;
 	struct Arc * arc = NULL;
+	struct File (*read_next_file_metadata)(FILE * file) = NULL;
+	
 	FILE * file = fopen(filename, "rb");
 	if(file == NULL)
 		goto file_not_found;
 	
 	/* check if a valid ARC file */
-	magic[0] = read32(file);
-	magic[1] = read32(file);
-	if(magic[0] != 0x6b636150 || magic[1] != 0x656c6946)
-		goto close_file;
+	fread(magic_string, 1, 12, file);
 	
-	spaaaaaaaaaaaaaaace = read32(file);
-	if(spaaaaaaaaaaaaaaace != 0x20202020)
+	if(strncmp(magic_string, "PackFile    ", 12) == 0) /* v1 */
+		version = 1;
+	else if(strncmp(magic_string, "BURIKO ARC20", 12) == 0) /* v2 */
+		version = 2;
+	else
 		goto close_file;
 	
 	numberOfFiles = read32(file);
@@ -49,26 +55,14 @@ struct Arc * arc_open(const char * filename)
 	if(arc == NULL)
 		goto clean_files_memory;
 	
+	if(version == 1)
+		read_next_file_metadata = read_next_file_metadata_v1;
+	else /* version == 2 */
+		read_next_file_metadata = read_next_file_metadata_v2;
+	
 	for(i = 0;i < numberOfFiles;i++)
 	{
-		int j;
-		struct File f;
-		fread(&f.name, 1, 16, file);
-		f.offset = read32(file);
-		f.size = read32(file);
-		
-		/* remove non ascii bytes */
-		for(j = 0;j < 16;j++)
-		{
-			if(f.name[j] != 0 && (f.name[j] < 32 || f.name[j] > 127))
-				f.name[j] = '_';
-		}
-		
-		/* padding */
-		read32(file);
-		read32(file);
-		
-		files[i] = f;
+		files[i] = read_next_file_metadata(file);
 	}
 	
 	arc->file = file;
@@ -142,3 +136,49 @@ uint32_t read32(FILE * file)
 	return i;
 }
 
+struct File read_next_file_metadata_v1(FILE * file)
+{
+	int j;
+	struct File f;
+	fread(&f.name, 1, 16, file);
+	f.offset = read32(file);
+	f.size = read32(file);
+	
+	/* remove non ascii bytes */
+	for(j = 0;j < 16;j++)
+	{
+		if(f.name[j] != 0 && (f.name[j] < 32 || f.name[j] > 127))
+			f.name[j] = '_';
+	}
+	
+	/* padding */
+	read32(file);
+	read32(file);
+	
+	return f;
+}
+
+struct File read_next_file_metadata_v2(FILE * file)
+{
+	int j;
+	struct File f;
+	fread(&f.name, 1, 16, file);
+	
+	/* padding */
+	fseek(file, 20 * 4, SEEK_CUR);
+	
+	f.offset = read32(file);
+	f.size = read32(file);
+	
+	/* remove non ascii bytes */
+	for(j = 0;j < 16;j++)
+	{
+		if(f.name[j] != 0 && (f.name[j] < 32 || f.name[j] > 127))
+			f.name[j] = '_';
+	}
+	
+	/* padding */
+	fseek(file, 6 * 4, SEEK_CUR);
+	
+	return f;
+}
