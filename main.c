@@ -4,6 +4,7 @@
 #include "arc.h"
 #include "dsc.h"
 #include "cbg.h"
+#include "bse.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -44,6 +45,7 @@ int main(int argc, char** argv)
 	{
 		uint8_t * data = NULL;
 		uint8_t * raw_data = arc_get_file_data(arc, i);
+		uint8_t * bse_data = raw_data;
 		uint32_t filesize = arc_get_file_size(arc, i);
 		int good = 1;
 		
@@ -53,27 +55,37 @@ int main(int argc, char** argv)
 			sprintf(file_name_with_path, "%s", arc_get_file_name(arc, i));
 		
 		printf("%s...", arc_get_file_name(arc, i)); fflush(stdout);
-		if(dsc_is_valid(raw_data, filesize))
+		
+		if(bse_is_valid(raw_data, filesize))
+		{
+			printf("BSE..."); fflush(stdout);
+			if(bse_decrypt(raw_data))
+			{
+				bse_data = raw_data + 16;
+			}
+		}
+		
+		if(dsc_is_valid(bse_data, filesize))
 		{
 			uint32_t fsize;
 			printf("DSC..."); fflush(stdout);
 			
-			data = dsc_decrypt(raw_data, filesize, &fsize);
+			data = dsc_decrypt(bse_data, filesize, &fsize);
 			good = dsc_save(data, fsize, file_name_with_path);
 		}
-		else if(cbg_is_valid(raw_data, filesize))
+		else if(cbg_is_valid(bse_data, filesize))
 		{
 			uint16_t w, h;
 			printf("CBG..."); fflush(stdout);
 			
-			data = cbg_decrypt(raw_data, &w, &h);
+			data = cbg_decrypt(bse_data, &w, &h);
 			good = cbg_save(data, w, h, file_name_with_path);
 		}
 		else
 		{
 			FILE * f = fopen(file_name_with_path, "wb");
 			printf("uncompressed..."); fflush(stdout);
-			fwrite(raw_data, filesize, 1, f);
+			fwrite(bse_data, filesize, 1, f);
 			fclose(f);
 		}
 		
@@ -91,4 +103,3 @@ int main(int argc, char** argv)
 	arc_close(arc);
 	return 0;
 }
-
